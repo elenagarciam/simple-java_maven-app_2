@@ -11,6 +11,8 @@ pipeline {
                     echo IMAGE
                     echo VERSION
                     sh 'mvn -B -DskipTests clean package'
+                    sh 'New Branch"
+                    sh 'printenv'
                 }
             }
         }
