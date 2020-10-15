@@ -1,30 +1,51 @@
-pipeline {
-    agent {
-        label 'agent_maven'
+// main script block
+// could use eg. params.parallel build parameter to choose parallel/serial 
+def runParallel = true
+def buildStages
+
+node('master') {
+  stage('Initialise') {
+    // Set up List<Map<String,Closure>> describing the builds
+    buildStages = prepareBuildStages()
+    println("Initialised pipeline.")
+  }
+
+  for (builds in buildStages) {
+    if (runParallel) {
+      parallel(builds)
+    } else {
+      // run serially (nb. Map is unordered! )
+      for (build in builds.values()) {
+        build.call()
+      }
     }
-    stages {
-        stage('Build') {
-            steps {
-                script {
-                    IMAGE = readMavenPom().getArtifactId()
-                    VERSION = readMavenPom().getVersion()
-                    echo IMAGE
-                    echo VERSION
-                    sh 'mvn -B -DskipTests clean package'
-                    sh 'New Branch'
-                    sh 'printenv'
-                }
-            }
-        }
-        stage('Test') {
-            steps {
-                sh 'mvn test'
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
+  }
+
+  stage('Finish') {
+      println('Build complete.')
+  }
+}
+
+// Create List of build stages to suit
+def prepareBuildStages() {
+  def buildStagesList = []
+
+  for (i=1; i<5; i++) {
+    def buildParallelMap = [:]
+    for (name in [ 'one', 'two', 'three' ] ) {
+      def n = "${name} ${i}"
+      buildParallelMap.put(n, prepareOneBuildStage(n))
     }
+    buildStagesList.add(buildParallelMap)
+  }
+  return buildStagesList
+}
+
+def prepareOneBuildStage(String name) {
+  return {
+    stage("Build stage:${name}") {
+      println("Building ${name}")
+      sh(script:'sleep 5', returnStatus:true)
+    }
+  }
 }
